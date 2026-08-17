@@ -28,6 +28,17 @@ auth_project/
    ```
    Update credentials in `backend/config/settings.py` under `DATABASES` if yours differ.
 
+   Create an env file:
+   ```bash
+    SECRET_KEY=your_secret_key
+    DB_NAME=your_db_name
+    DB_USER=your_db_user
+    DB_PASSWORD=your_db_password
+    DB_HOST=localhost
+    DB_PORT=5432
+   ```
+   Update credentials in `.env` under `parent directory` if yours differ.
+
 2. Install dependencies:
    ```bash
    cd backend
