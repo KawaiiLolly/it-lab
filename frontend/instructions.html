@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test Instructions</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="css/app.css" rel="stylesheet">
+</head>
+<body class="app-body">
+
+<div class="container py-5">
+    <div class="card mx-auto" style="max-width: 600px;">
+        <div class="card-body">
+            <h4 class="card-title mb-3">Test Instructions</h4>
+            <ul>
+                <li>The test contains <strong>10 questions</strong>.</li>
+                <li>You will have <strong>20 minutes</strong> to complete the test.</li>
+                <li>The timer starts as soon as you click "Start Test" and cannot be paused.</li>
+                <li>Marking scheme: <strong>+5</strong> for each correct answer,
+                    <strong>-2</strong> for each incorrect answer, <strong>0</strong> for unattempted questions.</li>
+                <li class="text-danger"><strong>Use "Save" to record your answer for each question,</strong> and "Clear Options" to remove your selection.</li>
+                <li>Use the bookmark button to flag a question for review before you submit.</li>
+                <li>You can move between questions freely using Previous / Next or the question panel.</li>
+                <li>The test auto-submits when time runs out, or you can submit manually anytime.</li>
+                <li class="text-danger"><strong>You are allowed only ONE attempt at this test.</strong></li>
+            </ul>
+            <p id="message" class="text-danger"></p>
+            <div class="d-flex justify-content-between" id="actionRow">
+                <a href="dashboard.html" class="btn btn-outline-secondary">Back to Dashboard</a>
+                <button class="btn btn-success" id="startBtn">Start Test</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/quiz.js"></script>
+<script>
+requireAuth();
+
+(async function () {
+    const statusResult = await fetchQuizStatus();
+    if (statusResult.ok && statusResult.data.attempted) {
+        document.getElementById("actionRow").innerHTML = `
+            <a href="dashboard.html" class="btn btn-outline-secondary">Back to Dashboard</a>
+        `;
+        document.getElementById("message").innerText =
+            "You have already attempted this test. Only one attempt is allowed.";
+        return;
+    }
+    if (statusResult.ok && statusResult.data.in_progress) {
+        document.getElementById("startBtn").innerText = "Resume Test";
+    }
+})();
+
+document.getElementById("startBtn").addEventListener("click", async function () {
+    const result = await startQuiz();
+    if (result.ok) {
+        window.location.href = `test.html?session=${result.data.session_id}`;
+    } else {
+        document.getElementById("message").innerText = result.data.error || "Could not start test.";
+    }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test Result</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="css/app.css" rel="stylesheet">
+</head>
+<body class="app-body">
+
+<div class="container py-5">
+    <div class="card mx-auto" style="max-width: 500px;">
+        <div class="card-body text-center">
+            <h4 class="card-title mb-4">Test Completed</h4>
+            <p class="mb-2">Questions Attempted: <strong id="rAttempted">-</strong> / <span id="rTotal">-</span></p>
+            <p class="mb-2">Correct: <strong id="rCorrect" class="text-success">-</strong></p>
+            <p class="mb-2">Incorrect: <strong id="rWrong" class="text-danger">-</strong></p>
+            <p class="mb-4">Unattempted: <strong id="rUnattempted">-</strong></p>
+            <h5 class="mb-4">Marks Obtained: <span id="rScore" class="text-primary">-</span></h5>
+            <button class="btn btn-danger btn-lg" id="exitBtn">Exit App</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+requireAuth();
+
+const stored = sessionStorage.getItem("lastResult");
+if (stored) {
+    const data = JSON.parse(stored);
+    document.getElementById("rAttempted").innerText = data.attempted_count;
+    document.getElementById("rTotal").innerText = data.total_questions;
+    document.getElementById("rCorrect").innerText = data.correct_count;
+    document.getElementById("rWrong").innerText = data.wrong_count;
+    document.getElementById("rUnattempted").innerText = data.unattempted_count;
+    document.getElementById("rScore").innerText = data.score;
+    sessionStorage.removeItem("lastResult");
+} else {
+    document.querySelector(".card-body h4").insertAdjacentHTML("afterend", "<p>No result data found.</p>");
+}
+
+// Exit App -> logs the candidate out and sends them back to the login page
+document.getElementById("exitBtn").addEventListener("click", function () {
+    logout();
+});
+</script>
+
+</body>
+</html>

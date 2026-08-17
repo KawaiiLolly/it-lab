@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test in Progress</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="css/app.css" rel="stylesheet">
+</head>
+<body class="app-body">
+
+<nav class="navbar navbar-light bg-white shadow-sm mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#questionPanel">
+            &#9776; Questions
+        </button>
+        <span class="navbar-brand mb-0">Online Test</span>
+        <span class="timer-box" id="timerBox">--:--</span>
+    </div>
+</nav>
+
+<!-- Collapsible left panel: all questions in a 4-per-row grid -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="questionPanel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Questions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <p class="small text-muted">
+            <span class="badge" style="background:#198754;">&nbsp;</span> Answered
+            &nbsp;<span class="badge border text-dark">&#9733;</span> Bookmarked
+        </p>
+        <div class="question-grid" id="questionNav"></div>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <h5 id="qTitle">Question</h5>
+                <button class="btn btn-sm btn-outline-warning" id="bookmarkBtn">&#9734; Bookmark</button>
+            </div>
+            <p id="qText" class="mb-4"></p>
+            <div id="optionsBox"></div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button class="btn btn-primary" id="saveBtn">Save</button>
+                <button class="btn btn-outline-secondary" id="clearBtn">Clear Options</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between mb-5">
+        <button class="btn btn-secondary" id="prevBtn">&laquo; Previous</button>
+        <button class="btn btn-danger" id="finishBtn">Submit / Finish Test</button>
+        <button class="btn btn-secondary" id="nextBtn">Next &raquo;</button>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/quiz.js"></script>
+<script>
+requireAuth();
+
+const params = new URLSearchParams(window.location.search);
+const sessionId = params.get("session");
+
+let questions = [];   // [{order, question:{id,text,option_a..d}, selected_option, bookmarked}, ...]
+let currentIndex = 0;
+let remainingSeconds = 0;
+let timerHandle = null;
+
+const RED_THRESHOLD_SECONDS = 5 * 60; // timer turns red under 5:00
+
+if (!sessionId) {
+    window.location.href = "dashboard.html";
+}
+
+async function loadSession() {
+    const result = await fetchSession(sessionId);
+    if (!result.ok) {
+        alert("Could not load test session.");
+        window.location.href = "dashboard.html";
+        return;
+    }
+    if (result.data.submitted) {
+        // time already expired server-side, or already submitted from another tab
+        window.location.href = "dashboard.html";
+        return;
+    }
+
+    questions = result.data.questions;
+    remainingSeconds = result.data.remaining_seconds;
+
+    renderQuestionNav();
+    renderQuestion();
+    startTimer();
+}
+
+function renderQuestionNav() {
+    const nav = document.getElementById("questionNav");
+    nav.innerHTML = questions.map(function (sq, idx) {
+        const answered = sq.selected_option ? "answered" : "";
+        const current = idx === currentIndex ? "current" : "";
+        const star = sq.bookmarked ? " \u2605" : "";
+        return `<button class="btn btn-outline-primary q-nav-btn ${answered} ${current}"
+                    onclick="goToQuestion(${idx})">${sq.order}${star}</button>`;
+    }).join("");
+}
+
+function goToQuestion(idx) {
+    currentIndex = idx;
+    renderQuestion();
+    renderQuestionNav();
+
+    const panelEl = document.getElementById("questionPanel");
+    const instance = bootstrap.Offcanvas.getInstance(panelEl);
+    if (instance) instance.hide();
+}
+
+function renderQuestion() {
+    const sq = questions[currentIndex];
+    const q = sq.question;
+
+    document.getElementById("qTitle").innerText = `Question ${sq.order} of ${questions.length}`;
+    document.getElementById("qText").innerText = q.text;
+
+    const options = [["A", q.option_a], ["B", q.option_b], ["C", q.option_c], ["D", q.option_d]];
+
+    document.getElementById("optionsBox").innerHTML = options.map(function (pair) {
+        const key = pair[0], text = pair[1];
+        const checked = sq.selected_option === key ? "checked" : "";
+        return `<div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="option" id="opt${key}" value="${key}" ${checked}>
+                    <label class="form-check-label" for="opt${key}">${key}. ${text}</label>
+                </div>`;
+    }).join("");
+
+    document.getElementById("prevBtn").disabled = currentIndex === 0;
+    document.getElementById("nextBtn").disabled = currentIndex === questions.length - 1;
+
+    updateBookmarkButton();
+}
+
+function updateBookmarkButton() {
+    const sq = questions[currentIndex];
+    const btn = document.getElementById("bookmarkBtn");
+    if (sq.bookmarked) {
+        btn.innerHTML = "&#9733; Bookmarked";
+        btn.classList.add("active");
+    } else {
+        btn.innerHTML = "&#9734; Bookmark";
+        btn.classList.remove("active");
+    }
+}
+
+function getSelectedOption() {
+    const checked = document.querySelector('input[name="option"]:checked');
+    return checked ? checked.value : null;
+}
+
+document.getElementById("saveBtn").addEventListener("click", async function () {
+    const sq = questions[currentIndex];
+    const selected = getSelectedOption();
+    const result = await saveAnswer(sessionId, sq.question.id, selected);
+    if (result.ok) {
+        sq.selected_option = result.data.selected_option;
+        renderQuestionNav();
+    }
+});
+
+document.getElementById("clearBtn").addEventListener("click", async function () {
+    const sq = questions[currentIndex];
+    const result = await saveAnswer(sessionId, sq.question.id, null);
+    if (result.ok) {
+        sq.selected_option = null;
+        renderQuestion();
+        renderQuestionNav();
+    }
+});
+
+document.getElementById("bookmarkBtn").addEventListener("click", async function () {
+    const sq = questions[currentIndex];
+    const newState = !sq.bookmarked;
+    const result = await toggleBookmark(sessionId, sq.question.id, newState);
+    if (result.ok) {
+        sq.bookmarked = result.data.bookmarked;
+        updateBookmarkButton();
+        renderQuestionNav();
+    }
+});
+
+document.getElementById("prevBtn").addEventListener("click", function () {
+    if (currentIndex > 0) goToQuestion(currentIndex - 1);
+});
+
+document.getElementById("nextBtn").addEventListener("click", function () {
+    if (currentIndex < questions.length - 1) goToQuestion(currentIndex + 1);
+});
+
+document.getElementById("finishBtn").addEventListener("click", function () {
+    if (confirm("Are you sure you want to submit the test? This cannot be undone.")) {
+        finishTest();
+    }
+});
+
+async function finishTest() {
+    clearInterval(timerHandle);
+    const result = await submitQuiz(sessionId);
+    if (result.ok) {
+        sessionStorage.setItem("lastResult", JSON.stringify(result.data));
+        window.location.href = `result.html?session=${sessionId}`;
+    } else {
+        alert(result.data.error || "Could not submit test.");
+    }
+}
+
+function startTimer() {
+    updateTimerDisplay();
+    timerHandle = setInterval(function () {
+        remainingSeconds--;
+        updateTimerDisplay();
+        if (remainingSeconds <= 0) {
+            clearInterval(timerHandle);
+            alert("Time is up! Submitting your test automatically.");
+            finishTest();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const box = document.getElementById("timerBox");
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    box.innerText = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    box.classList.toggle("danger", remainingSeconds <= RED_THRESHOLD_SECONDS);
+}
+
+loadSession();
+</script>
+
+</body>
+</html>

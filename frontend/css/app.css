@@ -1,0 +1,56 @@
+body.app-body {
+    background: #f4f6f9;
+    min-height: 100vh;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+.timer-box {
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    background: #fff3cd;
+    color: #664d03;
+}
+
+/* Turns red once remaining time drops below 5 minutes */
+.timer-box.danger {
+    background: #f8d7da;
+    color: #842029;
+}
+
+/* 4-per-row grid of question buttons inside the collapsible side panel */
+.question-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+}
+
+.q-nav-btn {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    padding: 0;
+}
+
+.q-nav-btn.answered {
+    background-color: #198754 !important;
+    color: #fff !important;
+    border-color: #198754 !important;
+}
+
+.q-nav-btn.current {
+    outline: 3px solid #0d6efd;
+}
+
+#bookmarkBtn.active {
+    background-color: #ffc107;
+    color: #212529;
+    border-color: #ffc107;
+}
